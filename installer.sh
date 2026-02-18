@@ -75,7 +75,7 @@ fi
 
 echo "Writing configs..."
 
-echo <<INTEOF
+echo <<INTEOF > /etc/wireguard/wg-internal.conf
 [Interface]
 Address = $IP_INTERNAL/32
 ListenPort = $LISTEN_PORT
@@ -88,9 +88,9 @@ PostDown = ip rule del from `ip addr show $(ip route | awk '/default/ { print $5
 [Peer]
 PublicKey = $PUBKEY_EXTERNAL
 AllowedIPs = $IP_EXTERNAL/32
-INTEOF > /etc/wireguard/wg-internal.conf
+INTEOF
 
-echo <<EXEOF
+echo <<EXEOF > ~/wg-external.conf
 [Interface]
 Address=$IP_EXTERNAL/32
 PrivateKey=$PRIVKEY_EXTERNAL
@@ -102,6 +102,6 @@ PublicKey=$PUBKEY_INTERNAL
 AllowedIPs=10.$MY_IP.0/24
 Endpoint=$CURRENT_SERVER_IP:$LISTEN_PORT
 PersistentKeepalive=25
-EXEOF > ~/wg-external.conf
+EXEOF
 
 echo "Successfully installed!"
