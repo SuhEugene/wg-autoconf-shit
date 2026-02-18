@@ -40,11 +40,6 @@ while [ true ]; do
   if [ -z "$LISTEN_PORT" ]; then
     continue
   fi
-  netstat -an | grep $LISTEN_PORT
-  if [ $? -eq 0 ]; then
-    echo "Port is in use"
-    continue
-  fi
   break
 done
 
