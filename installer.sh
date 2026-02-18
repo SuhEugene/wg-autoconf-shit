@@ -62,9 +62,9 @@ while [ true ]; do
     CURRENT_SERVER_IP=""
     read -r answer
     if [[ "$answer" != "y" ]]; then
-      CURRENT_SERVER_IP=$PLACEHOLDER_IP
       continue
     fi
+    CURRENT_SERVER_IP=$PLACEHOLDER_IP
   fi
   if [[ $CURRENT_SERVER_IP =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
     break
