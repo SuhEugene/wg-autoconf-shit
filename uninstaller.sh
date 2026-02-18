@@ -4,10 +4,10 @@ set -e
 
 echo "Uninstalling..."
 
-echo "Removing wireguard internal interface..."
-rm /etc/wireguard/wg-internal.conf || true
+echo "Removing wireguard server interface..."
+rm /etc/wireguard/wg-server.conf || true
 
-echo "Removing wireguard external interface..."
-rm ./wg-external.conf || true
+echo "Removing wireguard client interface..."
+rm /etc/wireguard/wg-client.conf || true
 
 echo "Uninstalled!"

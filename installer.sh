@@ -87,7 +87,7 @@ fi
 
 echo "Writing configs..."
 
-cat <<INTEOF > /etc/wireguard/wg-internal.conf
+cat <<INTEOF > /etc/wireguard/wg-server.conf
 [Interface]
 Address = $IP_INTERNAL/32
 ListenPort = $LISTEN_PORT
@@ -102,7 +102,7 @@ PublicKey = $PUBKEY_EXTERNAL
 AllowedIPs = $IP_EXTERNAL/32
 INTEOF
 
-cat <<EXEOF > ./wg-external.conf
+cat <<EXEOF > /etc/wireguard/wg-client.conf
 [Interface]
 Address=$IP_EXTERNAL/32
 PrivateKey=$KEY_EXTERNAL
