@@ -29,15 +29,21 @@ while [ true ]; do
   break
 done
 
-LISTEN_PORT=17968
+LISTEN_PORT=$2
 while [ true ]; do
   printf "Port to listen: "
-  read -r LISTEN_PORT
+  if [ -z "$LISTEN_PORT" ]; then
+    read -r LISTEN_PORT
+  else
+    echo "$LISTEN_PORT"
+  fi
   if [[ $LISTEN_PORT -lt 1000 ]] || [[ $LISTEN_PORT -gt 65535 ]]; then
     echo "Port must be between 1000 and 65535"
+    LISTEN_PORT=""
     continue
   fi
   if [ -z "$LISTEN_PORT" ]; then
+    LISTEN_PORT=""
     continue
   fi
   break
