@@ -30,11 +30,30 @@ while [ true ]; do
   break
 done
 
-echo "Installing..."
+echo <<EOF
+[Interface]
+Address = $IP_INTERNAL/32
+ListenPort = $LISTEN_PORT
+PrivateKey = $KEY_INTERNAL
+PostUp = iptables -t nat -A POSTROUTING -o `ip route | awk '/default/ {print $5; exit}'` -j MASQUERADE
+PostUp = ip rule add from `ip addr show $(ip route | awk '/default/ { print $5 }') | grep "inet" | grep -v "inet6" | head -n 1 | awk '/inet/ {print $2}' | awk -F/ '{print $1}'` table main
+PostDown = iptables -t nat -D POSTROUTING -o `ip route | awk '/default/ {print $5; exit}'` -j MASQUERADE
+PostDown = ip rule del from `ip addr show $(ip route | awk '/default/ { print $5 }') | grep "inet" | grep -v "inet6" | head -n 1 | awk '/inet/ {print $2}' | awk -F/ '{print $1}'` table main
+EOF > /etc/wireguard/wg-internal.conf
 
-wg genkey > /etc/wireguard/private.key
-ip link add wg0 type wireguard
-ip address add 10.7.7.1/24 dev wg0
-wg set wg0 private-key /etc/wireguard/private.key
+echo <<EOF
+[Interface]
+Address=$IP_EXTERNAL/32
+PrivateKey=$KEY_EXTERNAL
+PostUp = iptables -t nat -A POSTROUTING -o `ip route | awk '/default/ {print $5; exit}'` -j MASQUERADE
+PostDown = iptables -t nat -D POSTROUTING -o `ip route | awk '/default/ {print $5; exit}'` -j MASQUERADE
+
+[Peer]
+PublicKey=$PUBKEY_EXTERNAL
+AllowedIPs=10.$MY_IP.0/24
+Endpoint=$CURRENT_SERVER_IP:$LISTEN_PORT
+PersistentKeepalive=25
+EOF > /etc/wireguard/wg-external.conf
+
 
 echo "Successfully installed!"
