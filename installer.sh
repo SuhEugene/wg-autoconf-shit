@@ -10,7 +10,6 @@ echo "Checking ip..."
 IP_INTERNAL=10.0.0.1
 IP_EXTERNAL=10.0.0.2
 
-IP_IS_FINAL=0
 MY_IP=$1
 
 while [ true ]; do
@@ -29,6 +28,56 @@ while [ true ]; do
   fi
   break
 done
+
+LISTEN_PORT=17968
+while [ true ]; do
+  printf "Port to listen: "
+  read -r LISTEN_PORT
+  if [[ $LISTEN_PORT -lt 1000 ]] || [[ $LISTEN_PORT -gt 65535 ]]; then
+    echo "Port must be between 1000 and 65535"
+    continue
+  fi
+  if [ -z "$LISTEN_PORT" ]; then
+    continue
+  fi
+  netstat -an | grep $LISTEN_PORT
+  if [ $? -eq 0 ]; then
+    echo "Port is in use"
+    continue
+  fi
+  break
+done
+
+PLACEHOLDER_IP=$(curl -s https://api.ipify.org)
+while [ true ]; do
+  printf "Server IP: "
+  read -r CURRENT_SERVER_IP
+  if [ -z "$CURRENT_SERVER_IP" ]; then
+    printf "Set to $PLACEHOLDER_IP? [y/N] "
+    CURRENT_SERVER_IP=$PLACEHOLDER_IP
+    read -r answer
+    if [[ "$answer" != "y" ]]; then
+      continue
+    fi
+  fi
+  if [[ $CURRENT_SERVER_IP =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+    break
+  fi
+  echo "Invalid IP"
+done
+
+echo "Generating keys..."
+
+KEY_INTERNAL=$(wg genkey)
+KEY_EXTERNAL=$(wg genkey)
+PUBKEY_EXTERNAL=$(echo $KEY_EXTERNAL | wg pubkey)
+
+if [ -z "$KEY_INTERNAL" ] || [ -z "$KEY_EXTERNAL" ]; then
+  echo "Failed to generate keys"
+  exit 1
+fi
+
+echo "Writing configs..."
 
 echo <<EOF
 [Interface]
