@@ -102,7 +102,7 @@ PublicKey = $PUBKEY_EXTERNAL
 AllowedIPs = $IP_EXTERNAL/32
 INTEOF
 
-cat <<EXEOF > ~/wg-external.conf
+cat <<EXEOF > ./wg-external.conf
 [Interface]
 Address=$IP_EXTERNAL/32
 PrivateKey=$KEY_EXTERNAL

@@ -8,6 +8,6 @@ echo "Removing wireguard internal interface..."
 rm /etc/wireguard/wg-internal.conf || true
 
 echo "Removing wireguard external interface..."
-rm ~/wg-external.conf || true
+rm ./wg-external.conf || true
 
 echo "Uninstalled!"
