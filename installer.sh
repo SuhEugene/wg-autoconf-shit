@@ -93,7 +93,7 @@ INTEOF
 cat <<EXEOF > ~/wg-external.conf
 [Interface]
 Address=$IP_EXTERNAL/32
-PrivateKey=$PRIVKEY_EXTERNAL
+PrivateKey=$KEY_EXTERNAL
 PostUp = iptables -t nat -A POSTROUTING -o `ip route | awk '/default/ {print $5; exit}'` -j MASQUERADE
 PostDown = iptables -t nat -D POSTROUTING -o `ip route | awk '/default/ {print $5; exit}'` -j MASQUERADE
 
