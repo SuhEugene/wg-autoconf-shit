@@ -70,6 +70,7 @@ echo "Generating keys..."
 
 KEY_INTERNAL=$(wg genkey)
 KEY_EXTERNAL=$(wg genkey)
+PUBKEY_INTERNAL=$(echo $KEY_INTERNAL | wg pubkey)
 PUBKEY_EXTERNAL=$(echo $KEY_EXTERNAL | wg pubkey)
 
 if [ -z "$KEY_INTERNAL" ] || [ -z "$KEY_EXTERNAL" ]; then
@@ -88,21 +89,24 @@ PostUp = iptables -t nat -A POSTROUTING -o `ip route | awk '/default/ {print $5;
 PostUp = ip rule add from `ip addr show $(ip route | awk '/default/ { print $5 }') | grep "inet" | grep -v "inet6" | head -n 1 | awk '/inet/ {print $2}' | awk -F/ '{print $1}'` table main
 PostDown = iptables -t nat -D POSTROUTING -o `ip route | awk '/default/ {print $5; exit}'` -j MASQUERADE
 PostDown = ip rule del from `ip addr show $(ip route | awk '/default/ { print $5 }') | grep "inet" | grep -v "inet6" | head -n 1 | awk '/inet/ {print $2}' | awk -F/ '{print $1}'` table main
+
+[Peer]
+PublicKey = $PUBKEY_EXTERNAL
+AllowedIPs = $IP_EXTERNAL/32
 EOF > /etc/wireguard/wg-internal.conf
 
 echo <<EOF
 [Interface]
 Address=$IP_EXTERNAL/32
-PrivateKey=$KEY_EXTERNAL
+PrivateKey=$PRIVKEY_EXTERNAL
 PostUp = iptables -t nat -A POSTROUTING -o `ip route | awk '/default/ {print $5; exit}'` -j MASQUERADE
 PostDown = iptables -t nat -D POSTROUTING -o `ip route | awk '/default/ {print $5; exit}'` -j MASQUERADE
 
 [Peer]
-PublicKey=$PUBKEY_EXTERNAL
+PublicKey=$PUBKEY_INTERNAL
 AllowedIPs=10.$MY_IP.0/24
 Endpoint=$CURRENT_SERVER_IP:$LISTEN_PORT
 PersistentKeepalive=25
-EOF > /etc/wireguard/wg-external.conf
-
+EOF > ~/wg-external.conf
 
 echo "Successfully installed!"
