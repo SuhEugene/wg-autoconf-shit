@@ -2,7 +2,6 @@
 
 set -e
 
-echo "Uninstalling..."
 ./uninstaller.sh
 
 echo "Checking ip..."
