@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+./uninstaller.sh
+
 MY_IP=$1
 if [ -z "$MY_IP" ]; then
   echo "Usage: $0 <my_ip>"
