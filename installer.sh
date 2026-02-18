@@ -7,19 +7,28 @@ echo "Uninstalling..."
 
 echo "Checking ip..."
 
-MY_IP=$1
-if [ -z "$MY_IP" ]; then
-  echo "Usage: $0 <my_ip>"
-  exit 1
-fi
+IP_INTERNAL=10.0.0.1
+IP_EXTERNAL=10.0.0.2
 
-echo "You want to use $MY_IP as your IP"
-printf "Is that correct? [y/N] "
-read -r answer
-if [[ "$answer" != "y" ]]; then
-  echo "Exiting..."
-  exit 1
-fi
+IP_IS_FINAL=0
+MY_IP=$1
+
+while [ true ]; do
+  if [ -z "$MY_IP" ]; then
+    printf "Enter IP subnet: 10."
+    read -r MY_IP
+  fi
+  echo "IP will look like this: 10.$MY_IP.1"
+  IP_INTERNAL=10.$MY_IP.1
+  IP_EXTERNAL=10.$MY_IP.2
+  printf "Is that correct? [y/N] "
+  read -r answer
+  if [[ "$answer" != "y" ]]; then
+    MY_IP=""
+    continue
+  fi
+  break
+done
 
 echo "Installing..."
 
