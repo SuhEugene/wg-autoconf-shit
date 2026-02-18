@@ -50,14 +50,20 @@ while [ true ]; do
 done
 
 PLACEHOLDER_IP=$(curl -s https://api.ipify.org)
+CURRENT_SERVER_IP=$3
 while [ true ]; do
   printf "Server IP: "
-  read -r CURRENT_SERVER_IP
+  if [ -z "$CURRENT_SERVER_IP" ]; then
+    read -r CURRENT_SERVER_IP
+  else
+    echo "$CURRENT_SERVER_IP"
+  fi
   if [ -z "$CURRENT_SERVER_IP" ]; then
     printf "Set to $PLACEHOLDER_IP? [y/N] "
-    CURRENT_SERVER_IP=$PLACEHOLDER_IP
+    CURRENT_SERVER_IP=""
     read -r answer
     if [[ "$answer" != "y" ]]; then
+      CURRENT_SERVER_IP=$PLACEHOLDER_IP
       continue
     fi
   fi
@@ -65,6 +71,7 @@ while [ true ]; do
     break
   fi
   echo "Invalid IP"
+  CURRENT_SERVER_IP=""
 done
 
 echo "Generating keys..."
