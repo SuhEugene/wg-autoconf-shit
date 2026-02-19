@@ -100,6 +100,7 @@ PostDown = ip rule del from `ip addr show $(ip route | awk '/default/ { print $5
 [Peer]
 PublicKey = $PUBKEY_EXTERNAL
 AllowedIPs = $IP_EXTERNAL/32
+#Endpoint = obfuscator
 INTEOF
 
 cat <<EXEOF > /etc/wireguard/wg-client.conf
@@ -108,6 +109,7 @@ Address=$IP_EXTERNAL/32
 PrivateKey=$KEY_EXTERNAL
 PostUp = iptables -t nat -A POSTROUTING -o `ip route | awk '/default/ {print $5; exit}'` -j MASQUERADE
 PostDown = iptables -t nat -D POSTROUTING -o `ip route | awk '/default/ {print $5; exit}'` -j MASQUERADE
+#ListenPort = obfuscator
 
 [Peer]
 PublicKey=$PUBKEY_INTERNAL
