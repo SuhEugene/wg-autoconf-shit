@@ -121,21 +121,21 @@ INTERNAL_SERVER_IP_CIDR=10.$MY_IP.0/24
 do_sed() {
   file_from=$1
   file_to=$2
-  sed "s/OBFUSCATOR_PORT/$OBFUSCATOR_PORT/g" $file_from > $file_to
-  sed -i "s/OBFUSCATOR_KEY/$OBFUSCATOR_KEY/g" $file_to
+  sed "s#OBFUSCATOR_PORT#$OBFUSCATOR_PORT#g" $file_from > $file_to
+  sed -i "s#OBFUSCATOR_KEY#$OBFUSCATOR_KEY#g" $file_to
 
-  sed -i "s/PUBLIC_SERVER_IP/$PUBLIC_SERVER_IP/g" $file_to
-  sed -i "s/PUBLIC_SERVER_PORT/$PUBLIC_SERVER_PORT/g" $file_to
+  sed -i "s#PUBLIC_SERVER_IP#$PUBLIC_SERVER_IP#g" $file_to
+  sed -i "s#PUBLIC_SERVER_PORT#$PUBLIC_SERVER_PORT#g" $file_to
 
-  sed -i "s/INTERNAL_CLIENT_IP/$INTERNAL_CLIENT_IP/g" $file_to
-  sed -i "s/INTERNAL_SERVER_IP/$INTERNAL_SERVER_IP/g" $file_to
-  sed -i "s/INTERNAL_SERVER_IP_CIDR/$INTERNAL_SERVER_IP_CIDR/g" $file_to
+  sed -i "s#INTERNAL_CLIENT_IP#$INTERNAL_CLIENT_IP#g" $file_to
+  sed -i "s#INTERNAL_SERVER_IP#$INTERNAL_SERVER_IP#g" $file_to
+  sed -i "s#INTERNAL_SERVER_IP_CIDR#$INTERNAL_SERVER_IP_CIDR#g" $file_to
 
-  sed -i "s/CLIENT_KEY_PRIVATE/$CLIENT_KEY_PRIVATE/g" $file_to
-  sed -i "s/CLIENT_KEY_PUBLIC/$CLIENT_KEY_PUBLIC/g" $file_to
+  sed -i "s#CLIENT_KEY_PRIVATE#$CLIENT_KEY_PRIVATE#g" $file_to
+  sed -i "s#CLIENT_KEY_PUBLIC#$CLIENT_KEY_PUBLIC#g" $file_to
 
-  sed -i "s/SERVER_KEY_PRIVATE/$SERVER_KEY_PRIVATE/g" $file_to 
-  sed -i "s/SERVER_KEY_PUBLIC/$SERVER_KEY_PUBLIC/g" $file_to
+  sed -i "s#SERVER_KEY_PRIVATE#$SERVER_KEY_PRIVATE#g" $file_to 
+  sed -i "s#SERVER_KEY_PUBLIC#$SERVER_KEY_PUBLIC#g" $file_to
 }
 
 mkdir -p out
