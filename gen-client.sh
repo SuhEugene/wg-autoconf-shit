@@ -2,7 +2,7 @@
 
 set -e
 
-CLIENT_ID=$3
+CLIENT_ID=$1
 while [ true ]; do
   printf "Client id: "
   if [ -z "$CLIENT_ID" ]; then
