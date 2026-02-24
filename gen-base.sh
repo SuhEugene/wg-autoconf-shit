@@ -2,10 +2,7 @@
 
 set -e
 
-echo "Checking ip..."
-
 INTERNAL_SERVER_IP=10.0.0.1
-INTERNAL_CLIENT_IP=10.0.0.2
 
 MY_IP=$1
 
@@ -21,10 +18,10 @@ while [ true ]; do
   fi
   echo "IP will look like this: 10.$MY_IP.1"
   INTERNAL_SERVER_IP=10.$MY_IP.1
-  INTERNAL_CLIENT_IP=10.$MY_IP.2
-  printf "Is that correct? [y/N] "
+  printf "Is that correct? [Y/n] "
   read -r answer
-  if [[ "$answer" != "y" ]]; then
+  # if answer not y or Y or empty
+  if [[ ! "$answer" =~ ^[Yy]?$ ]]; then
     MY_IP=""
     continue
   fi
@@ -76,6 +73,7 @@ while [ true ]; do
   break
 done
 
+echo "Curling external ip..."
 PLACEHOLDER_IP=$(curl -s https://api.ipify.org)
 PUBLIC_SERVER_IP=$4
 while [ true ]; do
@@ -86,10 +84,10 @@ while [ true ]; do
     echo "$PUBLIC_SERVER_IP"
   fi
   if [ -z "$PUBLIC_SERVER_IP" ]; then
-    printf "Set to $PLACEHOLDER_IP? [y/N] "
+    printf "Set to $PLACEHOLDER_IP? [Y/n] "
     PUBLIC_SERVER_IP=""
     read -r answer
-    if [[ "$answer" != "y" ]]; then
+    if [[ ! "$answer" =~ ^[Yy]?$ ]]; then
       continue
     fi
     PUBLIC_SERVER_IP=$PLACEHOLDER_IP
@@ -104,12 +102,10 @@ done
 echo "Generating keys..."
 
 SERVER_KEY_PRIVATE=$(wg genkey)
-CLIENT_KEY_PRIVATE=$(wg genkey)
 SERVER_KEY_PUBLIC=$(echo $SERVER_KEY_PRIVATE | wg pubkey)
-CLIENT_KEY_PUBLIC=$(echo $CLIENT_KEY_PRIVATE | wg pubkey)
 OBFUSCATOR_KEY=$(openssl rand -hex 24)
 
-if [ -z "$SERVER_KEY_PRIVATE" ] || [ -z "$CLIENT_KEY_PRIVATE" ] || [ -z "$SERVER_KEY_PUBLIC" ] || [ -z "$CLIENT_KEY_PUBLIC" ] || [ -z "$OBFUSCATOR_KEY" ]; then
+if [ -z "$SERVER_KEY_PRIVATE" ] || [ -z "$SERVER_KEY_PUBLIC" ] || [ -z "$OBFUSCATOR_KEY" ]; then
   echo "Failed to generate keys"
   exit 1
 fi
@@ -121,28 +117,37 @@ INTERNAL_SERVER_IP_CIDR=10.$MY_IP.0/24
 do_sed() {
   file_from=$1
   file_to=$2
-  sed "s#OBFUSCATOR_PORT#$OBFUSCATOR_PORT#g" $file_from > $file_to
+
+  echo "Generating config $file_to"
+
+  cp $file_from $file_to
+
+  sed -i "s#OBFUSCATOR_PORT#$OBFUSCATOR_PORT#g" $file_to
   sed -i "s#OBFUSCATOR_KEY#$OBFUSCATOR_KEY#g" $file_to
 
   sed -i "s#PUBLIC_SERVER_IP#$PUBLIC_SERVER_IP#g" $file_to
   sed -i "s#PUBLIC_SERVER_PORT#$PUBLIC_SERVER_PORT#g" $file_to
 
-  sed -i "s#INTERNAL_CLIENT_IP#$INTERNAL_CLIENT_IP#g" $file_to
-  sed -i "s#INTERNAL_SERVER_IP#$INTERNAL_SERVER_IP#g" $file_to
   sed -i "s#INTERNAL_SERVER_IP_CIDR#$INTERNAL_SERVER_IP_CIDR#g" $file_to
-
-  sed -i "s#CLIENT_KEY_PRIVATE#$CLIENT_KEY_PRIVATE#g" $file_to
-  sed -i "s#CLIENT_KEY_PUBLIC#$CLIENT_KEY_PUBLIC#g" $file_to
+  sed -i "s#INTERNAL_SERVER_IP#$INTERNAL_SERVER_IP#g" $file_to
 
   sed -i "s#SERVER_KEY_PRIVATE#$SERVER_KEY_PRIVATE#g" $file_to 
   sed -i "s#SERVER_KEY_PUBLIC#$SERVER_KEY_PUBLIC#g" $file_to
+
+  sed -i "s#INTERNAL_CLIENT_IP#10.$MY_IP.CLIENT_ID#g" $file_to
 }
 
-mkdir -p out
+rm -rf ./out
+mkdir -p ./out
+mkdir -p ./out/work
 
-do_sed ./templates/wg.server.conf ./out/wg-server.conf
+do_sed ./templates/wg.server.part1.conf ./out/work/wg-server.part1.conf
+do_sed ./templates/wg.server.part2.conf ./out/work/wg-server.part2.conf
 do_sed ./templates/wg-obfuscator.server.conf ./out/wg-obfuscator.server.conf
 do_sed ./templates/wg.client.conf ./out/wg-client.conf
 do_sed ./templates/wg-obfuscator.client.conf ./out/wg-obfuscator.client.conf
+
+echo "Copying ./out/wg-server.conf"
+cp ./out/work/wg-server.part1.conf ./out/wg-server.conf
 
 echo "Successfully generated!"
