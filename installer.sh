@@ -2,12 +2,10 @@
 
 set -e
 
-./uninstaller.sh
-
 echo "Checking ip..."
 
-IP_INTERNAL=10.0.0.1
-IP_EXTERNAL=10.0.0.2
+INTERNAL_SERVER_IP=10.0.0.1
+INTERNAL_CLIENT_IP=10.0.0.2
 
 MY_IP=$1
 
@@ -16,9 +14,14 @@ while [ true ]; do
     printf "Enter IP subnet: 10."
     read -r MY_IP
   fi
+  if [[ ! $MY_IP =~ ^[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+    echo "Wrong IP format"
+    MY_IP=""
+    continue
+  fi
   echo "IP will look like this: 10.$MY_IP.1"
-  IP_INTERNAL=10.$MY_IP.1
-  IP_EXTERNAL=10.$MY_IP.2
+  INTERNAL_SERVER_IP=10.$MY_IP.1
+  INTERNAL_CLIENT_IP=10.$MY_IP.2
   printf "Is that correct? [y/N] "
   read -r answer
   if [[ "$answer" != "y" ]]; then
@@ -28,94 +31,118 @@ while [ true ]; do
   break
 done
 
-LISTEN_PORT=$2
+PUBLIC_SERVER_PORT=$2
 while [ true ]; do
-  printf "Port to listen: "
-  if [ -z "$LISTEN_PORT" ]; then
-    read -r LISTEN_PORT
+  printf "Public server port: "
+  if [ -z "$PUBLIC_SERVER_PORT" ]; then
+    read -r PUBLIC_SERVER_PORT
   else
-    echo "$LISTEN_PORT"
+    echo "$PUBLIC_SERVER_PORT"
   fi
-  if [[ $LISTEN_PORT -lt 1000 ]] || [[ $LISTEN_PORT -gt 65535 ]]; then
+  if [[ $PUBLIC_SERVER_PORT -lt 1000 ]] || [[ $PUBLIC_SERVER_PORT -gt 65535 ]]; then
     echo "Port must be between 1000 and 65535"
-    LISTEN_PORT=""
+    PUBLIC_SERVER_PORT=""
     continue
   fi
-  if [ -z "$LISTEN_PORT" ]; then
-    LISTEN_PORT=""
+  if [ -z "$PUBLIC_SERVER_PORT" ]; then
+    PUBLIC_SERVER_PORT=""
+    continue
+  fi
+  break
+done
+
+OBFUSCATOR_PORT=$3
+while [ true ]; do
+  printf "Obfuscator port: "
+  if [ -z "$OBFUSCATOR_PORT" ]; then
+    read -r OBFUSCATOR_PORT
+  else
+    echo "$OBFUSCATOR_PORT"
+  fi
+  if [[ $OBFUSCATOR_PORT -lt 1000 ]] || [[ $OBFUSCATOR_PORT -gt 65535 ]]; then
+    echo "Port must be between 1000 and 65535"
+    OBFUSCATOR_PORT=""
+    continue
+  fi
+  if [[ $SERVER_PORT == $OBFUSCATOR_PORT ]]; then
+    echo "Obfuscator port must be different from listen port"
+    OBFUSCATOR_PORT=""
+    continue
+  fi
+  if [ -z "$OBFUSCATOR_PORT" ]; then
+    OBFUSCATOR_PORT=""
     continue
   fi
   break
 done
 
 PLACEHOLDER_IP=$(curl -s https://api.ipify.org)
-CURRENT_SERVER_IP=$3
+PUBLIC_SERVER_IP=$4
 while [ true ]; do
-  printf "Server IP: "
-  if [ -z "$CURRENT_SERVER_IP" ]; then
-    read -r CURRENT_SERVER_IP
+  printf "Server IP ($PLACEHOLDER_IP): "
+  if [ -z "$PUBLIC_SERVER_IP" ]; then
+    read -r PUBLIC_SERVER_IP
   else
-    echo "$CURRENT_SERVER_IP"
+    echo "$PUBLIC_SERVER_IP"
   fi
-  if [ -z "$CURRENT_SERVER_IP" ]; then
+  if [ -z "$PUBLIC_SERVER_IP" ]; then
     printf "Set to $PLACEHOLDER_IP? [y/N] "
-    CURRENT_SERVER_IP=""
+    PUBLIC_SERVER_IP=""
     read -r answer
     if [[ "$answer" != "y" ]]; then
       continue
     fi
-    CURRENT_SERVER_IP=$PLACEHOLDER_IP
+    PUBLIC_SERVER_IP=$PLACEHOLDER_IP
   fi
-  if [[ $CURRENT_SERVER_IP =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+  if [[ $PUBLIC_SERVER_IP =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
     break
   fi
   echo "Invalid IP"
-  CURRENT_SERVER_IP=""
+  PUBLIC_SERVER_IP=""
 done
 
 echo "Generating keys..."
 
-KEY_INTERNAL=$(wg genkey)
-KEY_EXTERNAL=$(wg genkey)
-PUBKEY_INTERNAL=$(echo $KEY_INTERNAL | wg pubkey)
-PUBKEY_EXTERNAL=$(echo $KEY_EXTERNAL | wg pubkey)
+SERVER_KEY_PRIVATE=$(wg genkey)
+CLIENT_KEY_PRIVATE=$(wg genkey)
+SERVER_KEY_PUBLIC=$(echo $SERVER_KEY_PRIVATE | wg pubkey)
+CLIENT_KEY_PUBLIC=$(echo $CLIENT_KEY_PRIVATE | wg pubkey)
+OBFUSCATOR_KEY=$(openssl rand -hex 24)
 
-if [ -z "$KEY_INTERNAL" ] || [ -z "$KEY_EXTERNAL" ]; then
+if [ -z "$SERVER_KEY_PRIVATE" ] || [ -z "$CLIENT_KEY_PRIVATE" ] || [ -z "$SERVER_KEY_PUBLIC" ] || [ -z "$CLIENT_KEY_PUBLIC" ] || [ -z "$OBFUSCATOR_KEY" ]; then
   echo "Failed to generate keys"
   exit 1
 fi
 
-echo "Writing configs..."
+echo "Generating configs..."
 
-cat <<INTEOF > /etc/wireguard/wg-server.conf
-[Interface]
-Address = $IP_INTERNAL/32
-ListenPort = $LISTEN_PORT
-PrivateKey = $KEY_INTERNAL
-PostUp = iptables -t nat -A POSTROUTING -o `ip route | awk '/default/ {print $5; exit}'` -j MASQUERADE
-PostUp = ip rule add from `ip addr show $(ip route | awk '/default/ { print $5 }') | grep "inet" | grep -v "inet6" | head -n 1 | awk '/inet/ {print $2}' | awk -F/ '{print $1}'` table main
-PostDown = iptables -t nat -D POSTROUTING -o `ip route | awk '/default/ {print $5; exit}'` -j MASQUERADE
-PostDown = ip rule del from `ip addr show $(ip route | awk '/default/ { print $5 }') | grep "inet" | grep -v "inet6" | head -n 1 | awk '/inet/ {print $2}' | awk -F/ '{print $1}'` table main
+INTERNAL_SERVER_IP_CIDR=10.$MY_IP.0/24
 
-[Peer]
-PublicKey = $PUBKEY_EXTERNAL
-AllowedIPs = $IP_EXTERNAL/32
-#Endpoint = obfuscator
-INTEOF
+do_sed() {
+  file_from=$1
+  file_to=$2
+  sed "s/OBFUSCATOR_PORT/$OBFUSCATOR_PORT/g" $file_from > $file_to
+  sed -i "s/OBFUSCATOR_KEY/$OBFUSCATOR_KEY/g" $file_to
 
-cat <<EXEOF > /etc/wireguard/wg-client.conf
-[Interface]
-Address=$IP_EXTERNAL/32
-PrivateKey=$KEY_EXTERNAL
-PostUp = iptables -t nat -A POSTROUTING -o `ip route | awk '/default/ {print $5; exit}'` -j MASQUERADE
-PostDown = iptables -t nat -D POSTROUTING -o `ip route | awk '/default/ {print $5; exit}'` -j MASQUERADE
-#ListenPort = obfuscator
+  sed -i "s/PUBLIC_SERVER_IP/$PUBLIC_SERVER_IP/g" $file_to
+  sed -i "s/PUBLIC_SERVER_PORT/$PUBLIC_SERVER_PORT/g" $file_to
 
-[Peer]
-PublicKey=$PUBKEY_INTERNAL
-AllowedIPs=10.$MY_IP.0/24
-Endpoint=$CURRENT_SERVER_IP:$LISTEN_PORT
-PersistentKeepalive=25
-EXEOF
+  sed -i "s/INTERNAL_CLIENT_IP/$INTERNAL_CLIENT_IP/g" $file_to
+  sed -i "s/INTERNAL_SERVER_IP/$INTERNAL_SERVER_IP/g" $file_to
+  sed -i "s/INTERNAL_SERVER_IP_CIDR/$INTERNAL_SERVER_IP_CIDR/g" $file_to
 
-echo "Successfully installed!"
+  sed -i "s/CLIENT_KEY_PRIVATE/$CLIENT_KEY_PRIVATE/g" $file_to
+  sed -i "s/CLIENT_KEY_PUBLIC/$CLIENT_KEY_PUBLIC/g" $file_to
+
+  sed -i "s/SERVER_KEY_PRIVATE/$SERVER_KEY_PRIVATE/g" $file_to 
+  sed -i "s/SERVER_KEY_PUBLIC/$SERVER_KEY_PUBLIC/g" $file_to
+}
+
+mkdir -p out
+
+do_sed ./templates/wg.server.conf ./out/wg-server.conf
+do_sed ./templates/wg-obfuscator.server.conf ./out/wg-obfuscator.server.conf
+do_sed ./templates/wg.client.conf ./out/wg-client.conf
+do_sed ./templates/wg-obfuscator.client.conf ./out/wg-obfuscator.client.conf
+
+echo "Successfully generated!"
